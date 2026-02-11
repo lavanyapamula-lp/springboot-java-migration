@@ -450,6 +450,16 @@ EOF
         add_test_starter_if_missing "spring-boot-starter-webmvc"   "spring-boot-starter-webmvc-test"
         add_test_starter_if_missing "spring-boot-starter-data-jpa" "spring-boot-starter-data-jpa-test"
 
+        if ! grep -q "jackson-databind" pom.xml; then
+        perl -i -0777 -pe 's|(<dependencies[^>]*>)|$1\n        <dependency>\n            <groupId>tools.jackson.core</groupId>\n            <artifactId>jackson-databind</artifactId>\n        </dependency>|g' pom.xml
+    fi
+
+    if grep -rq "MockMvc\|@WebMvcTest" src/test/java 2>/dev/null; then
+        if ! grep -q "spring-boot-starter-webmvc-test" pom.xml; then
+            perl -i -0777 -pe 's|(<dependencies[^>]*>)|$1\n        <dependency>\n            <groupId>org.springframework.boot</groupId>\n            <artifactId>spring-boot-starter-webmvc-test</artifactId>\n            <scope>test</scope>\n        </dependency>|g' pom.xml
+        fi
+    fi
+
 elif [[ "$BUILD_TOOL" == "gradle" ]]; then
         local gradle_file
         if [[ -f "build.gradle.kts" ]]; then
@@ -494,16 +504,8 @@ elif [[ "$BUILD_TOOL" == "gradle" ]]; then
 phase_2_imports() {
     log_phase "2" "IMPORT REWRITES"
 
-    # --- ADD THE NEW LINES HERE ---
-    echo "  Fixing Spring Boot 4 JDBC package relocation..."
-    find src/ -name "*.java" -exec sed -i 's/org.springframework.boot.autoconfigure.jdbc/org.springframework.boot.jdbc.autoconfigure/g' {} +
-
-    echo "  Fixing Spring Boot 4 Jackson package relocation..."
-    find src/ -name "*.java" -exec sed -i 's/org.springframework.boot.autoconfigure.jackson/org.springframework.boot.jackson.autoconfigure/g' {} +
-    # ------------------------------
-
-    # ── Rule 5.1: Jackson package renames ─────────────────────────
-    log_rule "5.1" "Jackson 2 → 3 package renames"
+    # ── Rule 5.1: Jackson 2 → 3 package renames in Java files ─────
+    log_rule "5.1" "Jackson 2 → 3 package renames (com.fasterxml → tools.jackson)"
     find_replace "Jackson databind imports" \
         "com\.fasterxml\.jackson\.databind" \
         "tools.jackson.databind" \
@@ -524,6 +526,31 @@ phase_2_imports() {
         "com\.fasterxml\.jackson\.module" \
         "tools.jackson.module" \
         "*.java"
+
+    # ── Rule 5.1b: Jackson groupId renames in pom.xml ────────────
+    log_rule "5.1b" "Jackson 2 → 3 groupId renames in pom.xml"
+    find . -name "pom.xml" -not -path "./.git/*" | while read -r pom; do
+        if ! $DRY_RUN && ! $REPORT_ONLY; then
+            # com.fasterxml.jackson.core → tools.jackson.core
+            sed -i 's|<groupId>com\.fasterxml\.jackson\.core</groupId>|<groupId>tools.jackson.core</groupId>|g' "$pom"
+            # com.fasterxml.jackson.datatype → tools.jackson.datatype
+            sed -i 's|<groupId>com\.fasterxml\.jackson\.datatype</groupId>|<groupId>tools.jackson.datatype</groupId>|g' "$pom"
+            # com.fasterxml.jackson.dataformat → tools.jackson.dataformat
+            sed -i 's|<groupId>com\.fasterxml\.jackson\.dataformat</groupId>|<groupId>tools.jackson.dataformat</groupId>|g' "$pom"
+            # com.fasterxml.jackson.module → tools.jackson.module
+            sed -i 's|<groupId>com\.fasterxml\.jackson\.module</groupId>|<groupId>tools.jackson.module</groupId>|g' "$pom"
+            # NOTE: com.fasterxml.jackson.core:jackson-annotations stays as-is (unchanged in Jackson 3)
+        fi
+    done
+    log_change "Jackson groupIds updated in pom.xml files"
+
+    # ── Spring Boot 4 autoconfigure package relocations ───────────
+    echo "  Fixing Spring Boot 4 JDBC package relocation..."
+    find src/ -name "*.java" -exec sed -i 's/org.springframework.boot.autoconfigure.jdbc/org.springframework.boot.jdbc.autoconfigure/g' {} +
+
+    echo "  Fixing Spring Boot 4 Jackson package relocation..."
+    find src/ -name "*.java" -exec sed -i 's/org.springframework.boot.autoconfigure.jackson/org.springframework.boot.jackson.autoconfigure/g' {} +
+    # ------------------------------
 
     # ── Rule 5.4: Spring Boot Jackson annotations ─────────────────
     log_rule "5.4" "Spring Boot Jackson annotation renames"
@@ -557,6 +584,20 @@ phase_2_imports() {
         "import org\.springframework\.boot\.test\.mock\.mockito\.SpyBean" \
         "import org.springframework.test.context.bean.override.mockito.MockitoSpyBean" \
         "*.java"
+    
+    # ── Rule 8.1b: MockBean/SpyBean annotation usage ───────────────
+    log_rule "8.1b" "MockBean/SpyBean annotation rewrites"
+
+    find_replace "@MockBean annotation" \
+        "@MockBean" \
+        "@MockitoBean" \
+        "*.java"
+
+    find_replace "@SpyBean annotation" \
+        "@SpyBean" \
+        "@MockitoSpyBean" \
+        "*.java"
+
 
     # ── Rule 8.3: JUnit 4 imports ─────────────────────────────────
     log_rule "8.3" "JUnit 4 → Jupiter import rewrites"
@@ -607,6 +648,79 @@ phase_2_imports() {
         "import org\.springframework\.lang\.NonNull" \
         "import org.jspecify.annotations.NonNull" \
         "*.java"
+
+    # ── Test Package Relocations (Covers src/main and src/test) ────
+    log_rule "2.3" "Relocating Spring Boot 4 modularized packages"
+    
+    # 1. Fix MockitoBean imports (moved from boot.test.mock to test.context)
+    find src/ -name "*.java" -exec sed -i 's/org.springframework.boot.test.mock.mockito.MockBean/org.springframework.test.context.bean.override.mockito.MockitoBean/g' {} +
+    find src/ -name "*.java" -exec sed -i 's/org.springframework.boot.test.mock.mockito.SpyBean/org.springframework.test.context.bean.override.mockito.MockitoSpyBean/g' {} +
+    
+    # 2. Fix Web Servlet Test packages (Spring Boot 4 modularization)
+    #    OLD: org.springframework.boot.test.autoconfigure.web.servlet.*
+    #    NEW: org.springframework.boot.webmvc.test.autoconfigure.*
+    #    This includes: AutoConfigureMockMvc, WebMvcTest, MockMvcPrint, etc.
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.test\.autoconfigure\.web\.servlet/org.springframework.boot.webmvc.test.autoconfigure/g' {} +
+
+    # 3. Fix Web Client Test packages
+    #    OLD: org.springframework.boot.test.autoconfigure.web.client.*
+    #    NEW: org.springframework.boot.restclient.test.autoconfigure.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.test\.autoconfigure\.web\.client/org.springframework.boot.restclient.test.autoconfigure/g' {} +
+
+    # 4. Fix Data JPA Test packages
+    #    OLD: org.springframework.boot.test.autoconfigure.orm.jpa.*
+    #    NEW: org.springframework.boot.data.jpa.test.autoconfigure.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.test\.autoconfigure\.orm\.jpa/org.springframework.boot.data.jpa.test.autoconfigure/g' {} +
+
+    # 5. Fix Data JDBC Test packages
+    #    OLD: org.springframework.boot.test.autoconfigure.data.jdbc.*
+    #    NEW: org.springframework.boot.data.jdbc.test.autoconfigure.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.test\.autoconfigure\.data\.jdbc/org.springframework.boot.data.jdbc.test.autoconfigure/g' {} +
+
+    # 6. Fix Data MongoDB Test packages
+    #    OLD: org.springframework.boot.test.autoconfigure.data.mongo.*
+    #    NEW: org.springframework.boot.data.mongodb.test.autoconfigure.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.test\.autoconfigure\.data\.mongo/org.springframework.boot.data.mongodb.test.autoconfigure/g' {} +
+
+    # 7. Fix Data Redis Test packages
+    #    OLD: org.springframework.boot.test.autoconfigure.data.redis.*
+    #    NEW: org.springframework.boot.data.redis.test.autoconfigure.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.test\.autoconfigure\.data\.redis/org.springframework.boot.data.redis.test.autoconfigure/g' {} +
+
+    # 8. Fix JSON Test packages
+    #    OLD: org.springframework.boot.test.autoconfigure.json.*
+    #    NEW: org.springframework.boot.jackson.test.autoconfigure.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.test\.autoconfigure\.json/org.springframework.boot.jackson.test.autoconfigure/g' {} +
+
+    # 9. Fix WebFlux Test packages
+    #    OLD: org.springframework.boot.test.autoconfigure.web.reactive.*
+    #    NEW: org.springframework.boot.webflux.test.autoconfigure.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.test\.autoconfigure\.web\.reactive/org.springframework.boot.webflux.test.autoconfigure/g' {} +
+
+    # 10. Fix production autoconfigure packages (non-test)
+    #     OLD: org.springframework.boot.autoconfigure.web.servlet.*
+    #     NEW: org.springframework.boot.webmvc.autoconfigure.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.autoconfigure\.web\.servlet/org.springframework.boot.webmvc.autoconfigure/g' {} +
+
+    #     OLD: org.springframework.boot.autoconfigure.web.reactive.*
+    #     NEW: org.springframework.boot.webflux.autoconfigure.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.autoconfigure\.web\.reactive/org.springframework.boot.webflux.autoconfigure/g' {} +
+
+    #     OLD: org.springframework.boot.autoconfigure.data.jpa.*
+    #     NEW: org.springframework.boot.data.jpa.autoconfigure.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.autoconfigure\.data\.jpa/org.springframework.boot.data.jpa.autoconfigure/g' {} +
+
+    #     OLD: org.springframework.boot.autoconfigure.orm.jpa.*
+    #     NEW: org.springframework.boot.jpa.autoconfigure.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.autoconfigure\.orm\.jpa/org.springframework.boot.jpa.autoconfigure/g' {} +
+
+    #     OLD: org.springframework.boot.autoconfigure.security.servlet.*
+    #     NEW: org.springframework.boot.security.autoconfigure.servlet.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.autoconfigure\.security\.servlet/org.springframework.boot.security.autoconfigure.servlet/g' {} +
+
+    #     OLD: org.springframework.boot.autoconfigure.security.oauth2.*
+    #     NEW: org.springframework.boot.security.autoconfigure.oauth2.*
+    find src/ -name "*.java" -exec sed -i 's/org\.springframework\.boot\.autoconfigure\.security\.oauth2/org.springframework.boot.security.autoconfigure.oauth2/g' {} +
 
     # ── Compile gate ──────────────────────────────────────────────
     # compile_gate "Phase 2"
@@ -718,7 +832,19 @@ phase_4_properties() {
 # ══════════════════════════════════════════════════════════════════════════════
 
 phase_5_tests() {
-    log_phase "5" "TEST FIXES"
+    log_phase "5" "TEST SUITE UPDATES"
+
+    log_rule "5.1" "Renaming @MockBean to @MockitoBean"
+    # Search the entire src directory to catch MigrateControllerTest.java
+    find src/ -name "*.java" -exec sed -i 's/@MockBean/@MockitoBean/g' {} +
+    
+    log_rule "5.2" "Renaming @SpyBean to @MockitoSpyBean"
+    find src/ -name "*.java" -exec sed -i 's/@SpyBean/@MockitoSpyBean/g' {}
+
+    log_rule "5.3" "Cleaning up legacy JUnit 4 references"
+    find src/test/java -name "*.java" -exec sed -i 's/org.junit.Test/org.junit.jupiter.api.Test/g' {} +
+    find src/test/java -name "*.java" -exec sed -i 's/@Before /@BeforeEach /g' {} +
+    find src/test/java -name "*.java" -exec sed -i 's/@After /@AfterEach /g' {} +
 
     # ── Test starters reminder ────────────────────────────────────
     log_rule "4.3" "Check test starter dependencies"
@@ -831,14 +957,45 @@ phase_7_validation() {
         log_success "No prohibited javax.* imports"
     fi
 
-    # Check 2: Jackson 2 imports
+    # Check 2: Jackson 2 imports in Java files
     local jackson2_count
     jackson2_count=$(grep -r "import com\.fasterxml\.jackson\." src/ --include="*.java" 2>/dev/null | grep -v "annotation" | wc -l | tr -d ' ')
     if [[ "$jackson2_count" -gt 0 ]]; then
-        log_fail "Found $jackson2_count Jackson 2 imports (should be tools.jackson.*)"
+        log_fail "Found $jackson2_count Jackson 2 imports in Java files (should be tools.jackson.*)"
         grep -r "import com\.fasterxml\.jackson\." src/ --include="*.java" 2>/dev/null | grep -v "annotation" | head -5
     else
-        log_success "No Jackson 2 imports (excluding annotations)"
+        log_success "No Jackson 2 imports in Java (excluding annotations)"
+    fi
+
+    # Check 2b: Jackson 2 groupIds in pom.xml
+    local jackson2_pom_count
+    jackson2_pom_count=$(grep -r "com\.fasterxml\.jackson\." --include="pom.xml" . 2>/dev/null | grep -v "annotation" | wc -l | tr -d ' ')
+    if [[ "$jackson2_pom_count" -gt 0 ]]; then
+        log_fail "Found $jackson2_pom_count Jackson 2 groupIds in pom.xml (should be tools.jackson.*)"
+        grep -r "com\.fasterxml\.jackson\." --include="pom.xml" . 2>/dev/null | grep -v "annotation" | head -5
+    else
+        log_success "No Jackson 2 groupIds in pom.xml"
+    fi
+
+    # Check 2c: Old Spring Boot test.autoconfigure packages
+    local old_test_pkg_count
+    old_test_pkg_count=$(grep -r "org\.springframework\.boot\.test\.autoconfigure\.web\.servlet\|org\.springframework\.boot\.test\.autoconfigure\.orm\.jpa\|org\.springframework\.boot\.test\.autoconfigure\.web\.client" src/ --include="*.java" 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$old_test_pkg_count" -gt 0 ]]; then
+        log_fail "Found $old_test_pkg_count old Spring Boot test autoconfigure packages (need Boot 4 modular packages)"
+        grep -r "org\.springframework\.boot\.test\.autoconfigure\.web\.servlet\|org\.springframework\.boot\.test\.autoconfigure\.orm\.jpa" src/ --include="*.java" 2>/dev/null | head -5
+    else
+        log_success "No old Spring Boot test autoconfigure packages"
+    fi
+
+    # Check 2d: Wrong intermediate package (org.springframework.boot.test.web.servlet — doesn't exist)
+    local wrong_test_pkg_count
+    wrong_test_pkg_count=$(grep -r "org\.springframework\.boot\.test\.web\.servlet" src/ --include="*.java" 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$wrong_test_pkg_count" -gt 0 ]]; then
+        log_fail "Found $wrong_test_pkg_count references to non-existent org.springframework.boot.test.web.servlet"
+        log_warn "  Correct package is: org.springframework.boot.webmvc.test.autoconfigure"
+        grep -r "org\.springframework\.boot\.test\.web\.servlet" src/ --include="*.java" 2>/dev/null | head -5
+    else
+        log_success "No references to non-existent test.web.servlet package"
     fi
 
     # Check 3: @MockBean / @SpyBean
