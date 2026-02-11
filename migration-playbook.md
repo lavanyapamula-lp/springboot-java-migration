@@ -1371,7 +1371,26 @@ checks:
   - "No conflicting Spring Framework versions (should all be 7.x)"
   - "No Undertow dependencies"
 ```
+## 19. Spring Security 7 Mandatory Lambda DSL
+scope: "**/SecurityConfig.java, **/*SecurityConfiguration.java"
+priority: CRITICAL
+description: "Spring Security 7 removes the .and() method. All configuration must use the Lambda DSL."
+action: "Refactor HttpSecurity chains to use lambda expressions for csrf, authorizeHttpRequests, and sessionManagement."
+example_before: "http.csrf().disable().authorizeRequests().anyRequest().authenticated();"
+example_after: "http.csrf(csrf -> csrf.disable()).authorizeHttpRequests(auth -> auth.anyRequest().authenticated());"
 
+## 20. MockitoBean Migration (Final)
+scope: "src/test/java/**/*.java"
+priority: CRITICAL
+find: "@MockBean"
+replace: "@MockitoBean"
+additional_action: "Replace import org.springframework.boot.test.mock.mockito.MockBean with org.springframework.test.context.bean.override.mockito.MockitoBean"
+
+## 21. Hibernate 7 Query Validation
+scope: "src/main/java/**/*Repository.java"
+priority: HIGH
+description: "Hibernate 7 is stricter with HQL syntax. Validate all @Query annotations."
+action: "Check for implicit joins and deprecated Hibernate-specific functions."
 ---
 
 ## Appendix A: Full Import Rewrite Map
