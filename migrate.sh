@@ -391,6 +391,17 @@ phase_1_build_files() {
             "" \
             "pom.xml"
 
+        # ── NEW: Force Dependency Refresh ────────────────────────
+        log_info "Running forced dependency update and compilation check..."
+        
+        # -U forces update of your 2.0.0-SNAPSHOT parent
+        # -q keeps the output clean unless there is an error
+        if mvn clean compile -U -DskipTests; then
+            log_success "Build system updated and dependencies resolved."
+        else
+            log_fail "Build system update FAILED. Check your Parent POM connection."
+            exit 1
+
     elif [[ "$BUILD_TOOL" == "gradle" ]]; then
         local gradle_file
         if [[ -f "build.gradle.kts" ]]; then
