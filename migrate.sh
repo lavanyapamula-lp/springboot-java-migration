@@ -401,7 +401,7 @@ phase_1_build_files() {
         else
             log_fail "Build system update FAILED. Check your Parent POM connection."
             exit 1
-
+        fi
     elif [[ "$BUILD_TOOL" == "gradle" ]]; then
         local gradle_file
         if [[ -f "build.gradle.kts" ]]; then
