@@ -344,16 +344,13 @@ phase_1_build_files() {
             "<maven.compiler.target>25<\/maven.compiler.target>" \
             "pom.xml"
 
-        # ── Rule 3.1: Spring Boot parent ──────────────────────────
-        log_rule "3.1" "Update Spring Boot parent version"
-        if grep -q "spring-boot-starter-parent" pom.xml 2>/dev/null; then
+        # ── Rule 3.1: Custom Parent Library ──────────────────────
+        log_rule "3.1" "Update Custom Parent Library version"
+        if grep -q "spring-boot-mongodb-parent" pom.xml 2>/dev/null; then
             if ! $DRY_RUN && ! $REPORT_ONLY; then
-                # Use perl for multi-line replacement (more reliable than sed)
-                perl -i -0pe "s|(<artifactId>spring-boot-starter-parent</artifactId>\s*<version>)3\.\d+\.\d+[^<]*(</version>)|\${1}${SPRING_BOOT_VERSION}\${2}|g" pom.xml
-                log_change "Spring Boot parent → $SPRING_BOOT_VERSION"
-            else
-                echo -e "    ${YELLOW}[$(if $DRY_RUN; then echo DRY-RUN; else echo REPORT; fi)]${NC} Would update Spring Boot parent to $SPRING_BOOT_VERSION"
-                ((TOTAL_CHANGES++)) || true
+                # Precisely targets your custom artifact and sets version to 2.0.0-SNAPSHOT
+                perl -i -0pe "s|(<artifactId>spring-boot-mongodb-parent</artifactId>\s*<version>).*?(</version>)|\${1}2.0.0-SNAPSHOT\${2}|g" pom.xml
+                log_change "Custom Parent → 2.0.0-SNAPSHOT"
             fi
         fi
 
