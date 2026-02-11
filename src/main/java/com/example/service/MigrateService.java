@@ -145,23 +145,29 @@ public class MigrateService {
     }
 
     // Thread.stop(), suspend(), resume()
-    // Removed in Java 25
-    @SuppressWarnings("removal")
+    // Removed in Java 25 - using modern alternatives
     public void demonstrateLegacyThreadMethods() {
+        // Java 25 no longer supports Thread.suspend(), resume(), stop()
+        // Using modern interrupt-based approach instead
         Thread thread = new Thread(() -> {
             try {
-                Thread.sleep(1000);
+                Thread.sleep(100);
+                log.info("Thread completed normally");
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                log.info("Thread interrupted - modern alternative to stop()");
             }
         });
         thread.start();
         
-        // These methods are removed in Java 25 and should be replaced
-        // with modern concurrency constructs
-        thread.suspend();
-        thread.resume();
-        thread.stop();
+        try {
+            thread.join(200); // Wait for completion or timeout
+            if (thread.isAlive()) {
+                thread.interrupt(); // Modern alternative to stop()
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     // Runtime.runFinalization()
