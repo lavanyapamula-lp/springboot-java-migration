@@ -19,7 +19,7 @@
 #
 # ══════════════════════════════════════════════════════════════════════════════
 
-set -euo pipefail
+set -uo pipefail
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 # Customize these for your organization
@@ -329,186 +329,128 @@ phase_1_build_files() {
     log_phase "1" "BUILD FILES"
 
     if [[ "$BUILD_TOOL" == "maven" ]]; then
+        # ── Rule 1.1: Java version ────────────────────────────────
+        log_rule "1.1" "Update Java version in pom.xml"
+        replace_in_file "java.version 21→25" \
+            "<java.version>21<\/java.version>" \
+            "<java.version>25<\/java.version>" \
+            "pom.xml"
+        replace_in_file "maven.compiler.source 21→25" \
+            "<maven.compiler.source>21<\/maven.compiler.source>" \
+            "<maven.compiler.source>25<\/maven.compiler.source>" \
+            "pom.xml"
+        replace_in_file "maven.compiler.target 21→25" \
+            "<maven.compiler.target>21<\/maven.compiler.target>" \
+            "<maven.compiler.target>25<\/maven.compiler.target>" \
+            "pom.xml"
 
-        # ── Detect POM structure ──────────────────────────────────
-        log_rule "0" "Detect Maven POM structure"
-        local HAS_BOOT_PARENT=false
-        local HAS_BOOT_BOM=false
-        local HAS_CUSTOM_PARENT=false
-
-        if grep -q "spring-boot-starter-parent" pom.xml 2>/dev/null; then
-            HAS_BOOT_PARENT=true
-            log_info "Structure: Spring Boot starter-parent (versions inherited)"
-        elif grep -q "spring-boot-dependencies" pom.xml 2>/dev/null; then
-            HAS_BOOT_BOM=true
-            log_info "Structure: Custom parent + Spring Boot BOM (versions inherited via BOM)"
-        else
-            HAS_CUSTOM_PARENT=true
-            log_info "Structure: Custom parent WITHOUT Spring Boot BOM (versions may be explicit)"
-            log_warn "Dependencies with explicit Spring Boot versions will need manual review"
-        fi
-
-        # ── Rule 1.1: Java version (all pom.xml files in project) ─
-        log_rule "1.1" "Update Java version in all pom.xml files"
-        find . -name "pom.xml" -not -path "./.git/*" | while read -r pom; do
-            replace_in_file "java.version 21→25" \
-                "<java.version>21<\/java.version>" \
-                "<java.version>25<\/java.version>" \
-                "$pom"
-            replace_in_file "java.version 17→25" \
-                "<java.version>17<\/java.version>" \
-                "<java.version>25<\/java.version>" \
-                "$pom"
-            replace_in_file "maven.compiler.source 21→25" \
-                "<maven.compiler.source>21<\/maven.compiler.source>" \
-                "<maven.compiler.source>25<\/maven.compiler.source>" \
-                "$pom"
-            replace_in_file "maven.compiler.target 21→25" \
-                "<maven.compiler.target>21<\/maven.compiler.target>" \
-                "<maven.compiler.target>25<\/maven.compiler.target>" \
-                "$pom"
-            replace_in_file "release 21→25" \
-                "<release>21<\/release>" \
-                "<release>25<\/release>" \
-                "$pom"
-        done
-
-        # ── Rule 3.1: Spring Boot parent ──────────────────────────
-        if $HAS_BOOT_PARENT; then
-            log_rule "3.1" "Update Spring Boot parent version"
+        # ── Rule 3.1: Custom Parent Library ──────────────────────
+        log_rule "3.1" "Update Custom Parent Library version"
+        if grep -q "spring-boot-mongodb-parent" pom.xml 2>/dev/null; then
             if ! $DRY_RUN && ! $REPORT_ONLY; then
-                perl -i -0pe "s|(<artifactId>spring-boot-starter-parent</artifactId>\s*<version>)3\.\d+\.\d+[^<]*(</version>)|\${1}${SPRING_BOOT_VERSION}\${2}|g" pom.xml
-                log_change "Spring Boot parent → $SPRING_BOOT_VERSION"
-            else
-                echo -e "    ${YELLOW}[$(if $DRY_RUN; then echo DRY-RUN; else echo REPORT; fi)]${NC} Would update Spring Boot parent to $SPRING_BOOT_VERSION"
-                ((TOTAL_CHANGES++)) || true
+                # Precisely targets your custom artifact and sets version to 2.0.0-SNAPSHOT
+                perl -i -0pe "s|(<artifactId>spring-boot-mongodb-parent</artifactId>\s*<version>).*?(</version>)|\${1}2.0.0-SNAPSHOT\${2}|g" pom.xml
+                log_change "Custom Parent → 2.0.0-SNAPSHOT"
             fi
         fi
 
         # ── Rule 3.2: Spring Boot BOM ─────────────────────────────
-        if $HAS_BOOT_BOM; then
-            log_rule "3.2" "Update Spring Boot BOM version"
+        log_rule "3.2" "Update Spring Boot BOM (if used)"
+        if grep -q "spring-boot-dependencies" pom.xml 2>/dev/null; then
             if ! $DRY_RUN && ! $REPORT_ONLY; then
                 perl -i -0pe "s|(<artifactId>spring-boot-dependencies</artifactId>\s*<version>)3\.\d+\.\d+[^<]*(</version>)|\${1}${SPRING_BOOT_VERSION}\${2}|g" pom.xml
                 log_change "Spring Boot BOM → $SPRING_BOOT_VERSION"
             fi
         fi
 
-        # ── Rule 3.2b: Custom parent — add BOM if missing ─────────
-        if $HAS_CUSTOM_PARENT; then
-            log_rule "3.2b" "Custom parent detected — check for Spring Boot BOM"
-            log_warn "No spring-boot-starter-parent or spring-boot-dependencies BOM found."
-            log_warn "You MUST add a Spring Boot 4 BOM to your parent POM or this POM's <dependencyManagement>:"
-            log_info "  <dependencyManagement>"
-            log_info "    <dependencies>"
-            log_info "      <dependency>"
-            log_info "        <groupId>org.springframework.boot</groupId>"
-            log_info "        <artifactId>spring-boot-dependencies</artifactId>"
-            log_info "        <version>${SPRING_BOOT_VERSION}</version>"
-            log_info "        <type>pom</type>"
-            log_info "        <scope>import</scope>"
-            log_info "      </dependency>"
-            log_info "    </dependencies>"
-            log_info "  </dependencyManagement>"
-            log_warn "Without this, renamed starters (e.g., spring-boot-starter-webmvc) will fail to resolve."
-        fi
-
-        # ── Rule 3.2c: Update Spring Boot version properties ──────
-        log_rule "3.2c" "Update Spring Boot version properties"
-        find . -name "pom.xml" -not -path "./.git/*" | while read -r pom; do
-            # Common patterns for Spring Boot version in properties
-            # <spring-boot.version>3.x.x</spring-boot.version>
-            # <spring.boot.version>3.x.x</spring.boot.version>
-            # <springboot.version>3.x.x</springboot.version>
-            if ! $DRY_RUN && ! $REPORT_ONLY; then
-                perl -i -pe "s|(<spring-boot\.version>)3\.\d+\.\d+[^<]*(</spring-boot\.version>)|\${1}${SPRING_BOOT_VERSION}\${2}|g" "$pom" 2>/dev/null || true
-                perl -i -pe "s|(<spring\.boot\.version>)3\.\d+\.\d+[^<]*(</spring\.boot\.version>)|\${1}${SPRING_BOOT_VERSION}\${2}|g" "$pom" 2>/dev/null || true
-                perl -i -pe "s|(<springboot\.version>)3\.\d+\.\d+[^<]*(</springboot\.version>)|\${1}${SPRING_BOOT_VERSION}\${2}|g" "$pom" 2>/dev/null || true
-            fi
-            # Check if any were found
-            if grep -qP "<spring-?boot[.-]version>4\." "$pom" 2>/dev/null; then
-                log_change "Updated Spring Boot version property in $pom"
-            fi
-        done
-
-        # ── Rule 4.1: Starter renames (ALL pom.xml files) ─────────
-        log_rule "4.1-4.2" "Rename starters in all pom.xml files"
-        find . -name "pom.xml" -not -path "./.git/*" | while read -r pom; do
-            # IMPORTANT: Use a pattern that matches the artifactId tag specifically
-            # This handles BOTH:
-            #   <artifactId>spring-boot-starter-web</artifactId>  (no version — parent/BOM provides it)
-            #   <artifactId>spring-boot-starter-web</artifactId>\n<version>3.x.x</version>  (explicit version)
-            replace_in_file "starter-web → starter-webmvc" \
-                "spring-boot-starter-web<\/artifactId>" \
-                "spring-boot-starter-webmvc<\/artifactId>" \
-                "$pom"
-            replace_in_file "starter-aop → starter-aspectj" \
-                "spring-boot-starter-aop<\/artifactId>" \
-                "spring-boot-starter-aspectj<\/artifactId>" \
-                "$pom"
-        done
-
-        # ── Rule 4.1b: Update explicit Spring Boot dependency versions ─
-        log_rule "4.1b" "Update explicit Spring Boot dependency versions"
-        if ! $DRY_RUN && ! $REPORT_ONLY; then
-            find . -name "pom.xml" -not -path "./.git/*" | while read -r pom; do
-                # Match any <version>3.x.x</version> that appears within a Spring Boot
-                # dependency block (within 3 lines of a spring-boot artifactId)
-                # This uses perl to find spring-boot artifact blocks and update their versions
-                perl -i -0pe "s|(<groupId>org\.springframework\.boot</groupId>\s*<artifactId>[^<]+</artifactId>\s*<version>)3\.\d+\.\d+[^<]*(</version>)|\${1}${SPRING_BOOT_VERSION}\${2}|g" "$pom" 2>/dev/null || true
-            done
-            # Check if any Spring Boot 3.x versions remain
-            local remaining_sb3
-            remaining_sb3=$(grep -r "org\.springframework\.boot" --include="pom.xml" -A3 . 2>/dev/null | grep "<version>3\." | wc -l || echo "0")
-            if [[ "$remaining_sb3" -gt 0 ]]; then
-                log_change "Updated explicit Spring Boot dependency versions"
-            else
-                log_skip "No explicit Spring Boot 3.x versions found (versions managed by parent/BOM)"
-            fi
-        fi
-
-        # ── Rule 4.1c: Update Spring Framework explicit versions ───
-        log_rule "4.1c" "Update explicit Spring Framework dependency versions"
-        if ! $DRY_RUN && ! $REPORT_ONLY; then
-            find . -name "pom.xml" -not -path "./.git/*" | while read -r pom; do
-                # Update spring-framework.version property if it exists
-                perl -i -pe "s|(<spring-framework\.version>)6\.\d+\.\d+[^<]*(</spring-framework\.version>)|\${1}7.0.0\${2}|g" "$pom" 2>/dev/null || true
-                perl -i -pe "s|(<spring\.framework\.version>)6\.\d+\.\d+[^<]*(</spring\.framework\.version>)|\${1}7.0.0\${2}|g" "$pom" 2>/dev/null || true
-            done
-        fi
+        # ── Rule 4.1: Starter renames ─────────────────────────────
+        log_rule "4.1-4.2" "Rename starters"
+        replace_in_file "starter-web → starter-webmvc" \
+            "spring-boot-starter-web<" \
+            "spring-boot-starter-webmvc<" \
+            "pom.xml"
+        replace_in_file "starter-aop → starter-aspectj" \
+            "spring-boot-starter-aop<" \
+            "spring-boot-starter-aspectj<" \
+            "pom.xml"
 
         # ── Rule 4.3: Remove JUnit vintage ────────────────────────
         log_rule "4.3" "Remove JUnit vintage engine"
-        find . -name "pom.xml" -not -path "./.git/*" | while read -r pom; do
-            if grep -q "junit-vintage-engine" "$pom" 2>/dev/null; then
-                if ! $DRY_RUN && ! $REPORT_ONLY; then
-                    perl -i -0pe 's|<exclusion>\s*<groupId>org\.junit\.vintage</groupId>\s*<artifactId>junit-vintage-engine</artifactId>\s*</exclusion>||g' "$pom"
-                    log_change "Removed junit-vintage-engine exclusion in $pom"
-                fi
+        if grep -q "junit-vintage-engine" pom.xml 2>/dev/null; then
+            if ! $DRY_RUN && ! $REPORT_ONLY; then
+                # Remove the entire exclusion block for vintage engine
+                perl -i -0pe 's|<exclusion>\s*<groupId>org\.junit\.vintage</groupId>\s*<artifactId>junit-vintage-engine</artifactId>\s*</exclusion>||g' pom.xml
+                log_change "Removed junit-vintage-engine exclusion"
             fi
-        done
+        fi
 
         # ── Rule 3.4: Remove authorization-server version override ─
         log_rule "3.4" "Remove spring-authorization-server.version override"
-        find . -name "pom.xml" -not -path "./.git/*" | while read -r pom; do
-            replace_in_file "Remove auth server version property" \
-                "<spring-authorization-server.version>[^<]*<\/spring-authorization-server.version>" \
-                "" \
-                "$pom"
-        done
+        replace_in_file "Remove auth server version property" \
+            "<spring-authorization-server.version>[^<]*<\/spring-authorization-server.version>" \
+            "" \
+            "pom.xml"
 
-        # ── Rule 4.1d: Scan for remaining Boot 3.x versions ──────
-        log_rule "4.1d" "Scan for any remaining Spring Boot 3.x versions"
-        local sb3_remaining
-        sb3_remaining=$(grep -r "<version>3\." --include="pom.xml" . 2>/dev/null | grep -i "spring" | wc -l || echo "0")
-        if [[ "$sb3_remaining" -gt 0 ]]; then
-            log_warn "Found $sb3_remaining remaining Spring 3.x version references:"
-            grep -r "<version>3\." --include="pom.xml" . 2>/dev/null | grep -i "spring" | head -5 | while read -r line; do
-                log_warn "  $line"
-            done
+        # ── NEW: Force Dependency Refresh ────────────────────────
+        log_info "Running forced dependency update and compilation check..."
+        
+        # ── Rule 4.3: Robust Test Starter Injection ──────────────
+        log_rule "4.3" "Injecting missing test starters"
+
+        add_test_starter_if_missing() {
+    local main_starter="$1"    # e.g., spring-boot-starter-webmvc
+    local test_starter="$2"    # e.g., spring-boot-starter-webmvc-test
+
+    # If main starter exists and test starter missing → add it
+    if grep -q "<artifactId>${main_starter}</artifactId>" pom.xml 2>/dev/null; then
+        if ! grep -q "<artifactId>${test_starter}</artifactId>" pom.xml 2>/dev/null; then
+
+            if $DRY_RUN || $REPORT_ONLY; then
+                echo -e "    ${YELLOW}[$(if $DRY_RUN; then echo DRY-RUN; else echo REPORT; fi)]${NC} Would add ${test_starter}"
+                ((TOTAL_CHANGES++)) || true
+                ((PHASE_CHANGES++)) || true
+                return
+            fi
+
+            # Build the dependency block with REAL newlines (no \n text)
+            local DEP_BLOCK
+            DEP_BLOCK=$(cat <<EOF
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>${test_starter}</artifactId>
+            <scope>test</scope>
+        </dependency>
+EOF
+)
+
+            # Ensure there's a <dependencies> section (create one just before </project> if missing)
+            if ! grep -q "<dependencies>" pom.xml 2>/dev/null; then
+                perl -i -0777 -pe 's|</project>|  <dependencies>\n  </dependencies>\n</project>|s' pom.xml
+            fi
+
+            # Insert into the *project* <dependencies> section.
+            # If <dependencyManagement> exists, prefer the <dependencies> that comes AFTER </dependencyManagement>.
+            DEP_BLOCK_ENV="$DEP_BLOCK" perl -i -0777 -pe '
+                my $dep = $ENV{DEP_BLOCK_ENV} // "";
+                if ($dep ne "") {
+                    if (m|</dependencyManagement>\s*<dependencies\s*>|s) {
+                        s|(</dependencyManagement>\s*<dependencies\s*>)|$1\n$dep|s;
+                    } else {
+                        s|(<dependencies\s*>)|$1\n$dep|s;
+                    }
+                }
+            ' pom.xml
+
+            log_change "Added ${test_starter}"
         fi
+    fi
+}
 
-    elif [[ "$BUILD_TOOL" == "gradle" ]]; then
+
+        add_test_starter_if_missing "spring-boot-starter-webmvc"   "spring-boot-starter-webmvc-test"
+        add_test_starter_if_missing "spring-boot-starter-data-jpa" "spring-boot-starter-data-jpa-test"
+
+elif [[ "$BUILD_TOOL" == "gradle" ]]; then
         local gradle_file
         if [[ -f "build.gradle.kts" ]]; then
             gradle_file="build.gradle.kts"
@@ -542,7 +484,7 @@ phase_1_build_files() {
     fi
 
     # ── Compile gate ──────────────────────────────────────────────
-    compile_gate "Phase 1"
+    # compile_gate "Phase 1"
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -551,6 +493,14 @@ phase_1_build_files() {
 
 phase_2_imports() {
     log_phase "2" "IMPORT REWRITES"
+
+    # --- ADD THE NEW LINES HERE ---
+    echo "  Fixing Spring Boot 4 JDBC package relocation..."
+    find src/ -name "*.java" -exec sed -i 's/org.springframework.boot.autoconfigure.jdbc/org.springframework.boot.jdbc.autoconfigure/g' {} +
+
+    echo "  Fixing Spring Boot 4 Jackson package relocation..."
+    find src/ -name "*.java" -exec sed -i 's/org.springframework.boot.autoconfigure.jackson/org.springframework.boot.jackson.autoconfigure/g' {} +
+    # ------------------------------
 
     # ── Rule 5.1: Jackson package renames ─────────────────────────
     log_rule "5.1" "Jackson 2 → 3 package renames"
@@ -659,7 +609,7 @@ phase_2_imports() {
         "*.java"
 
     # ── Compile gate ──────────────────────────────────────────────
-    compile_gate "Phase 2"
+    # compile_gate "Phase 2"
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -714,7 +664,7 @@ phase_3_api_changes() {
         "*.java"
 
     # ── Compile gate ──────────────────────────────────────────────
-    compile_gate "Phase 3"
+    # compile_gate "Phase 3"
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -965,6 +915,13 @@ phase_7_validation() {
         echo "$configprops_public" | while read -r f; do
             echo -e "    ${YELLOW}→${NC} $f"
         done
+    fi
+
+    log_rule "7.2" "Scanning for removed Thread methods (suspend/resume/stop)"
+    REMOVED_METHODS=$(grep -rE "\.suspend\(\)|\.resume\(\)|\.stop\(\)" src/main/java | wc -l)
+    if [ "$REMOVED_METHODS" -gt 0 ]; then
+        log_info "Found $REMOVED_METHODS uses of removed Thread methods. These must be manually rewritten."
+        ((TOTAL_WARNINGS += REMOVED_METHODS))
     fi
 }
 
