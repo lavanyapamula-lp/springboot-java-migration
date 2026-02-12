@@ -15,3 +15,6 @@ buildNumber.properties
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+
+### Parent POM ###
+spring-boot-mongodb-parent/target/
