@@ -11,8 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class MigrateService {
 
-    // Virtual Threads (JEP 444)
-    // Deprecation Notice: Scheduled for removal in Java 25
+    // Virtual Threads (JEP 444) - Finalized in Java 21, continues in Java 25
     public String runVirtualThreadTask() {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             executor.submit(() -> log.info("Running in virtual thread"));
@@ -21,8 +20,7 @@ public class MigrateService {
         return "Running in virtual thread";
     }
 
-    // Sequenced Collections (JEP 431)
-    // Deprecation Notice: Scheduled for removal in Java 25
+    // Sequenced Collections (JEP 431) - Finalized in Java 21, continues in Java 25
     public List<String> demonstrateSequencedCollections() {
         List<String> list = new ArrayList<>();
         list.add("First");
@@ -40,8 +38,7 @@ public class MigrateService {
         return reversed;
     }
 
-    // Record Patterns (JEP 440)
-    // Deprecation Notice: Scheduled for removal in Java 25
+    // Record Patterns (JEP 440) - Finalized in Java 21, continues in Java 25
     public record DataPoint(int x, int y) {}
 
     public String demonstrateRecordPattern(int xvalue, int yvalue) {
@@ -55,7 +52,7 @@ public class MigrateService {
         };
     }
 
-    // Text blocks - Java 15+, may face deprecation review in Java 25
+    // Text blocks - Java 15+, stable in Java 25
     public String getMultilineText() {
         return """
                 This is a text block
@@ -64,8 +61,7 @@ public class MigrateService {
                 """;
     }
 
-    // Pattern matching with instanceof (Java 16+, enhanced in Java 21)
-    // Deprecated pattern in Java 25
+    // Pattern matching with instanceof (Java 16+, enhanced in Java 21, stable in Java 25)
     public String checkType(Object obj) {
         if (obj instanceof String str) {
             return "String: " + str;
@@ -75,8 +71,7 @@ public class MigrateService {
         return "Unknown";
     }
 
-    // Sealed classes - introduced in Java 17, enhanced in Java 21
-    // Potential deprecation candidate in Java 25
+    // Sealed classes - introduced in Java 17, enhanced in Java 21, stable in Java 25
     public sealed class Animal permits Dog, Cat {
         public String sound() {
             return "generic sound";
@@ -102,8 +97,7 @@ public class MigrateService {
         return "Sealed Class Dog says: " + dog.sound();
     }
 
-    // Record - introduced in Java 16, refined in Java 21
-    // Subject to potential deprecation review in Java 25
+    // Record - introduced in Java 16, refined in Java 21, stable in Java 25
     public record Person(String name, int age) {}
 
     public String demonstrateRecord() {
@@ -111,75 +105,33 @@ public class MigrateService {
         return "Record Person: " + person.name() + ", Age: " + person.age();
     }
 
-    // Math.clamp() - Introduced in Java 21
+    // Math.clamp() - Introduced in Java 21, continues in Java 25
     // Safely clamps a value between a minimum and maximum
-    // Deprecation Notice: Scheduled for removal in Java 25
     public int clampValue(int value) {
         // Returns value if within range, otherwise returns min or max
         return Math.clamp(value, 0, 100);
     }
 
-    // StringBuilder.repeat() - Introduced in Java 21
+    // StringBuilder.repeat() - Introduced in Java 21, continues in Java 25
     // Native support for repeating sequences in StringBuilder
-    // Deprecation Notice: Scheduled for removal in Java 25
     public String repeatText(String text, int count) {
         StringBuilder sb = new StringBuilder();
         sb.repeat(text, count);
         return sb.toString();
     }
 
-    // Character.isEmoji() - Introduced in Java 21
+    // Character.isEmoji() - Introduced in Java 21, continues in Java 25
     // Checks if a code point is an Emoji
-    // Deprecation Notice: Scheduled for removal in Java 25
     public boolean isEmojiCharacter(int codePoint) {
         return Character.isEmoji(codePoint);
     }
 
-    // String.splitWithDelimiters() - Introduced in Java 21
+    // String.splitWithDelimiters() - Introduced in Java 21, continues in Java 25
     // Returns an array containing both the substrings and the delimiters
-    // Deprecation Notice: Scheduled for removal in Java 25
     public String[] splitKeepingDelimiters(String input, String regex) {
         // Unlike standard split(), this keeps the delimiters in the result array
         // Example: "a,b,c" split by "," -> ["a", ",", "b", ",", "c"]
         return input.splitWithDelimiters(regex, -1);
-    }
-
-    // Thread.stop(), suspend(), resume()
-    // Removed in Java 25
-    @SuppressWarnings("removal")
-    public void demonstrateLegacyThreadMethods() {
-        Thread thread = new Thread(() -> {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
-        thread.start();
-        
-        // These methods are removed in Java 25 and should be replaced
-        // with modern concurrency constructs
-        thread.suspend();
-        thread.resume();
-        thread.stop();
-    }
-
-    // Runtime.runFinalization()
-    // Deprecated for removal in Java 25
-    @SuppressWarnings({"deprecation", "removal"})
-    public void demonstrateFinalization() {
-        // This method is deprecated for removal
-        Runtime.getRuntime().runFinalization();
-    }
-
-    // Object.finalize()
-    // Deprecated for removal in Java 25
-    @Override
-    @SuppressWarnings({"deprecation", "removal"})
-    public void finalize() throws Throwable {
-        // Finalization is deprecated for removal
-        log.info("MigrateService is being finalized");
-        super.finalize();
     }
 
 }
