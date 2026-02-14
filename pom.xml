@@ -11,7 +11,7 @@
 
     <parent>
         <groupId>com.example</groupId>
-        <artifactId>spring-boot-mongodb-parent</artifactId>
+        <artifactId>spring-test-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
         <relativePath/>
     </parent>
