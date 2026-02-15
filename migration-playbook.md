@@ -211,22 +211,22 @@ note: "[MANUAL-REVIEW] Critical for applications using distributed caches with J
 scope: "**/pom.xml"
 priority: CRITICAL
 description: |
-  This project uses a custom parent POM (spring-boot-mongodb-parent) which itself
+  This project uses a custom parent POM (springboot-test-parent) which itself
   inherits from spring-boot-starter-parent. Update the child POM to reference
   the new parent version that targets Spring Boot 4.0.0.
 find_regex: |
   <parent>\s*
     <groupId>com\.example</groupId>\s*
-    <artifactId>spring-boot-mongodb-parent</artifactId>\s*
+    <artifactId>springboot-test-parent</artifactId>\s*
     <version>1\.0\.0-SNAPSHOT</version>
 replace: |
   <parent>
     <groupId>com.example</groupId>
-    <artifactId>spring-boot-mongodb-parent</artifactId>
+    <artifactId>springboot-test-parent</artifactId>
     <version>2.0.0-SNAPSHOT</version>
 pre_requisite: |
-  The parent POM (spring-boot-mongodb-parent:2.0.0-SNAPSHOT) must be installed first:
-    mvn install -f <path-to>/spring-boot-mongodb-parent/pom.xml
+  The parent POM (springboot-test-parent:2.0.0-SNAPSHOT) must be installed first:
+    mvn install -f <path-to>/springboot-test-parent/pom.xml
   The parent POM inherits from spring-boot-starter-parent:4.0.0 and sets:
     - java.version=25
     - maven.compiler.source/target/release=25
@@ -235,10 +235,10 @@ pre_requisite: |
 validate: "mvn dependency:tree resolves without conflicts"
 ```
 
-### Rule 3.2 — Parent POM: spring-boot-mongodb-parent Configuration
+### Rule 3.2 — Parent POM: springboot-test-parent Configuration
 
 ```yaml
-scope: "spring-boot-mongodb-parent/pom.xml"
+scope: "springboot-test-parent/pom.xml"
 priority: CRITICAL
 description: |
   The custom parent POM must inherit from spring-boot-starter-parent:4.0.0

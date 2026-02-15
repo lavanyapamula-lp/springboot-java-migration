@@ -346,10 +346,10 @@ phase_1_build_files() {
 
         # ── Rule 3.1: Custom Parent Library ──────────────────────
         log_rule "3.1" "Update Custom Parent Library version"
-        if grep -q "spring-boot-mongodb-parent" pom.xml 2>/dev/null; then
+        if grep -q "springboot-test-parent" pom.xml 2>/dev/null; then
             if ! $DRY_RUN && ! $REPORT_ONLY; then
                 # Precisely targets your custom artifact and sets version to 2.0.0-SNAPSHOT
-                perl -i -0pe "s|(<artifactId>spring-boot-mongodb-parent</artifactId>\s*<version>).*?(</version>)|\${1}2.0.0-SNAPSHOT\${2}|g" pom.xml
+                perl -i -0pe "s|(<artifactId>springboot-test-parent</artifactId>\s*<version>).*?(</version>)|\${1}2.0.0-SNAPSHOT\${2}|g" pom.xml
                 log_change "Custom Parent → 2.0.0-SNAPSHOT"
             fi
         fi
