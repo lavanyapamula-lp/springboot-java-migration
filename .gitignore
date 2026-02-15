@@ -15,3 +15,7 @@ buildNumber.properties
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+
+# Maven runtime settings (ephemeral)
+.m2/settings.xml
+.m2/toolchains.xml
