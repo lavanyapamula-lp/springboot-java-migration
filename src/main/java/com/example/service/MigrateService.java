@@ -145,41 +145,38 @@ public class MigrateService {
     }
 
     // Thread.stop(), suspend(), resume()
-    // Removed in Java 25
-    @SuppressWarnings("removal")
+    // REMOVED in Java 25 - these methods no longer exist
     public void demonstrateLegacyThreadMethods() {
         Thread thread = new Thread(() -> {
             try {
-                Thread.sleep(1000);
+                Thread.sleep(100);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         });
         thread.start();
         
-        // These methods are removed in Java 25 and should be replaced
-        // with modern concurrency constructs
-        thread.suspend();
-        thread.resume();
-        thread.stop();
+        // These methods have been removed in Java 25
+        // Modern alternative: use thread.interrupt() and proper thread coordination
+        try {
+            thread.join(200); // Wait for thread to complete
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        log.info("Legacy thread methods (stop/suspend/resume) removed in Java 25");
     }
 
     // Runtime.runFinalization()
-    // Deprecated for removal in Java 25
-    @SuppressWarnings({"deprecation", "removal"})
+    // REMOVED in Java 25
     public void demonstrateFinalization() {
-        // This method is deprecated for removal
-        Runtime.getRuntime().runFinalization();
+        // This method has been removed in Java 25
+        // Modern alternative: use try-with-resources and explicit cleanup
+        log.info("Runtime.runFinalization() removed in Java 25");
     }
 
     // Object.finalize()
-    // Deprecated for removal in Java 25
-    @Override
-    @SuppressWarnings({"deprecation", "removal"})
-    public void finalize() throws Throwable {
-        // Finalization is deprecated for removal
-        log.info("MigrateService is being finalized");
-        super.finalize();
-    }
+    // REMOVED in Java 25
+    // Note: finalize() method has been removed - do not override
+    // Use try-with-resources or explicit cleanup methods instead
 
 }

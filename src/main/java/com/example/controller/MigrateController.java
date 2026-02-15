@@ -123,12 +123,6 @@ public class MigrateController {
     @GetMapping("runFinalization")
     public String getRunFinalization() {
         migrateService.demonstrateFinalization();
-        return "Runtime.runFinalization() executed";
-    }
-
-    @GetMapping("finalize")
-    public String callFinalize() throws Throwable {
-        migrateService.finalize();
-        return "finalize() called manually";
+        return "Runtime.runFinalization() removed in Java 25";
     }
 }
