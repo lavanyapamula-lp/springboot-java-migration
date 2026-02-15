@@ -1,10 +1,8 @@
 package com.example;
 
 import net.sf.log4jdbc.sql.jdbcapi.DataSourceSpy;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -13,21 +11,23 @@ import javax.sql.DataSource;
 
 @Configuration
 public class AppConfig {
-    @Autowired
-    DataSourceProperties dataSourceProperties;
+
+    @Value("${spring.datasource.url:jdbc:h2:mem:testdb}")
+    private String url;
+
+    @Value("${spring.datasource.username:}")
+    private String username;
+
+    @Value("${spring.datasource.password:}")
+    private String password;
 
     @Bean
-    @ConfigurationProperties(prefix = "spring.datasource")
     DataSource realDataSource() {
-        String url = this.dataSourceProperties.getUrl();
-        if (url == null) {
-            url = "jdbc:h2:mem:testdb";
-        }
         return DataSourceBuilder
-                .create(this.dataSourceProperties.getClassLoader())
+                .create()
                 .url(url)
-                .username(this.dataSourceProperties.getUsername())
-                .password(this.dataSourceProperties.getPassword())
+                .username(username)
+                .password(password)
                 .build();
     }
 
