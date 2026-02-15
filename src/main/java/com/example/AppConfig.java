@@ -1,9 +1,8 @@
 package com.example;
 
 import net.sf.log4jdbc.sql.jdbcapi.DataSourceSpy;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,27 +12,19 @@ import javax.sql.DataSource;
 
 @Configuration
 public class AppConfig {
-    @Autowired
-    DataSourceProperties dataSourceProperties;
 
     @Bean
     @ConfigurationProperties(prefix = "spring.datasource")
-    DataSource realDataSource() {
-        String url = this.dataSourceProperties.getUrl();
-        if (url == null) {
-            url = "jdbc:h2:mem:testdb";
-        }
+    DataSource realDataSource(@Value("${spring.datasource.url:jdbc:h2:mem:testdb}") String url) {
         return DataSourceBuilder
-                .create(this.dataSourceProperties.getClassLoader())
+                .create()
                 .url(url)
-                .username(this.dataSourceProperties.getUsername())
-                .password(this.dataSourceProperties.getPassword())
                 .build();
     }
 
     @Bean
     @Primary
     DataSource dataSource() {
-        return new DataSourceSpy(realDataSource());
+        return new DataSourceSpy(realDataSource(null));
     }
 }
