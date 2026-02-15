@@ -4,31 +4,49 @@ import com.example.controller.MigrateController;
 import com.example.entities.Student;
 import com.example.repositories.StudentRepository;
 import com.example.service.MigrateService;
-import tools.jackson.databind.JsonMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockitoBean;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(MigrateController.class)
+@ExtendWith(SpringExtension.class)
 class MigrateControllerTest {
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        public MigrateService migrateService() {
+            return mock(MigrateService.class);
+        }
+
+        @Bean
+        public StudentRepository studentRepository() {
+            return mock(StudentRepository.class);
+        }
+    }
 
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean
+    @Autowired
     private MigrateService migrateService;
 
-    @MockitoBean
+    @Autowired
     private StudentRepository studentRepository;
 
     @Autowired
