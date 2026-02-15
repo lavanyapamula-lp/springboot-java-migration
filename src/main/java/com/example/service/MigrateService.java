@@ -127,6 +127,7 @@ public class MigrateService {
     }
 
     // String.splitWithDelimiters() - Introduced in Java 21
+    // Returns an array containing both the substrings and the delimiters
     public String[] splitKeepingDelimiters(String input, String regex) {
         // Unlike standard split(), this keeps the delimiters in the result array
         // Example: "a,b,c" split by "," -> ["a", ",", "b", ",", "c"]
