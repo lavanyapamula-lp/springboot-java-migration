@@ -223,9 +223,9 @@ replace: |
   <parent>
     <groupId>com.example</groupId>
     <artifactId>springboot-test-parent</artifactId>
-    <version>2.0.0-SNAPSHOT</version>
+    <version>2.0.0</version>
 pre_requisite: |
-  The parent POM (springboot-test-parent:2.0.0-SNAPSHOT) must be installed first:
+  The parent POM (springboot-test-parent:2.0.0) must be installed first:
     mvn install -f <path-to>/springboot-test-parent/pom.xml
   The parent POM inherits from spring-boot-starter-parent:4.0.0 and sets:
     - java.version=25
