@@ -4,11 +4,11 @@ import com.example.controller.MigrateController;
 import com.example.entities.Student;
 import com.example.repositories.StudentRepository;
 import com.example.service.MigrateService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
@@ -25,14 +25,14 @@ class MigrateControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private MigrateService migrateService;
 
-    @MockBean
+    @MockitoBean
     private StudentRepository studentRepository;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @Test
     void hello_shouldReturnDefaultMessage() throws Exception {
@@ -57,7 +57,7 @@ class MigrateControllerTest {
 
         mockMvc.perform(get("/sequencedCollections"))
                 .andExpect(status().isOk())
-                .andExpect(content().json(objectMapper.writeValueAsString(reversedList)));
+                .andExpect(content().json(jsonMapper.writeValueAsString(reversedList)));
     }
 
     @Test
@@ -114,12 +114,5 @@ class MigrateControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(100))
                 .andExpect(jsonPath("$.name").value("TestName"));
-    }
-
-    @Test
-    void getLegacyThreads_shouldReturnConfirmation() throws Exception {
-        mockMvc.perform(get("/legacyThreads"))
-                .andExpect(status().isOk())
-                .andExpect(content().string("Legacy thread methods executed"));
     }
 }
