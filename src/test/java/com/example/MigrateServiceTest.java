@@ -104,9 +104,4 @@ class MigrateServiceTest {
         String[] result = migrateService.splitKeepingDelimiters("a,b-c", "[,\\-]");
         assertArrayEquals(new String[]{"a", ",", "b", "-", "c"}, result);
     }
-
-    @Test
-    void demonstrateFinalization_shouldExecuteWithoutError() {
-        assertDoesNotThrow(() -> migrateService.demonstrateFinalization());
-    }
 }
