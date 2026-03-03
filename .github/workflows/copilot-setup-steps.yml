@@ -1,10 +1,11 @@
 name: "Copilot Agent Environment Setup"
 
 on:
-  workflow_dispatch: # Allows you to manually verify the setup
+  workflow_call:
+  workflow_dispatch: # Allows manual verification of setup
 
 jobs:
-  # The agent specifically looks for this ID to prepare its workspace
+  # Copilot setup workflow entrypoint job id.
   copilot-setup-steps:
     runs-on: ubuntu-latest
     steps:
