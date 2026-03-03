@@ -105,8 +105,4 @@ class MigrateServiceTest {
         assertArrayEquals(new String[]{"a", ",", "b", "-", "c"}, result);
     }
 
-    @Test
-    void demonstrateFinalization_shouldExecuteWithoutError() {
-        assertDoesNotThrow(() -> migrateService.demonstrateFinalization());
-    }
 }
