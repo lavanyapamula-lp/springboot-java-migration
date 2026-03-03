@@ -114,21 +114,4 @@ public class MigrateController {
         return studentRepository.save(new Student(null, name));
     }
 
-    @GetMapping("legacyThreads")
-    public String getLegacyThreads() {
-        migrateService.demonstrateLegacyThreadMethods();
-        return "Legacy thread methods executed";
-    }
-
-    @GetMapping("runFinalization")
-    public String getRunFinalization() {
-        migrateService.demonstrateFinalization();
-        return "Runtime.runFinalization() executed";
-    }
-
-    @GetMapping("finalize")
-    public String callFinalize() throws Throwable {
-        migrateService.finalize();
-        return "finalize() called manually";
-    }
 }
