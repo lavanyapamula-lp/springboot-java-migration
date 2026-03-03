@@ -145,8 +145,7 @@ public class MigrateService {
     }
 
     // Thread.stop(), suspend(), resume()
-    // Removed in Java 25
-    @SuppressWarnings("removal")
+    // Removed in Java 25 — replaced with modern concurrency constructs
     public void demonstrateLegacyThreadMethods() {
         Thread thread = new Thread(() -> {
             try {
@@ -156,30 +155,8 @@ public class MigrateService {
             }
         });
         thread.start();
-        
-        // These methods are removed in Java 25 and should be replaced
-        // with modern concurrency constructs
-        thread.suspend();
-        thread.resume();
-        thread.stop();
+        thread.interrupt();
     }
 
-    // Runtime.runFinalization()
-    // Deprecated for removal in Java 25
-    @SuppressWarnings({"deprecation", "removal"})
-    public void demonstrateFinalization() {
-        // This method is deprecated for removal
-        Runtime.getRuntime().runFinalization();
-    }
-
-    // Object.finalize()
-    // Deprecated for removal in Java 25
-    @Override
-    @SuppressWarnings({"deprecation", "removal"})
-    public void finalize() throws Throwable {
-        // Finalization is deprecated for removal
-        log.info("MigrateService is being finalized");
-        super.finalize();
-    }
 
 }
